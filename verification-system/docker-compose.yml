@@ -1,0 +1,104 @@
+# For more information: https://laravel.com/docs/sail
+version: '3'
+services:
+    zookeeper-test:
+      image: 'bitnami/zookeeper:latest'
+      networks:
+        - templates_sail
+      ports:
+        - '2181:2181'
+      environment:
+        - ALLOW_ANONYMOUS_LOGIN=yes
+
+    kafka-test:
+      image: 'bitnami/kafka:latest'
+      ports:
+        - '9092:9092'
+        - '9093:9093'
+      environment:
+        - KAFKA_BROKER_ID=1
+        - KAFKA_LISTENERS=CLIENT://:9092
+        - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+        - KAFKA_ADVERTISED_LISTENERS=CLIENT://kafka-test:9092
+        - KAFKA_ZOOKEEPER_CONNECT=zookeeper-test:2181
+        - ALLOW_PLAINTEXT_LISTENER=yes
+        - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+        - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+        - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka-test:9092,EXTERNAL://localhost:9093
+        - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+        - KAFKA_INTER_BROKER_LISTENER_NAME=CLIENT
+      depends_on:
+        - zookeeper-test
+      networks:
+        - templates_sail
+
+    verification.system:
+        build:
+            context: ./docker/8.2
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: php8.2/app
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${APP_PORT:-80}:80'
+            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - templates_sail
+        depends_on:
+            - mysql
+            - mailhog
+    mailhog:
+        image: 'mailhog/mailhog:latest'
+        ports:
+            - '${FORWARD_MAILHOG_PORT:-1025}:1025'
+            - '${FORWARD_MAILHOG_DASHBOARD_PORT:-8025}:8025'
+        networks:
+            - templates_sail
+    gotify:
+      image: gotify/server
+      container_name: gotify
+      restart: unless-stopped
+      ports:
+        - 127.0.0.1:8000:80
+      networks:
+          - templates_sail
+      environment:
+        - TZ='Africa/Casablanca'
+      volumes:
+        - ./data:/app/data
+    mysql:
+        image: 'mysql/mysql-server:8.0'
+        ports:
+            - '${FORWARD_DB_PORT:-3306}:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_DATABASE: '${DB_DATABASE}'
+            MYSQL_USER: '${DB_USERNAME}'
+            MYSQL_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+        volumes:
+            - 'sail-mysql:/var/lib/mysql'
+            - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+        networks:
+            - templates_sail
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+            retries: 3
+            timeout: 5s
+networks:
+    templates_sail:
+      external: true
+
+volumes:
+    sail-mysql:
+        driver: local

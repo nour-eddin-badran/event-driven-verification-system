@@ -37,9 +37,9 @@ docker-compose exec -ti verification.system php artisan migrate:fresh
 Currently we should have both systems are running,
 
 ## How to test it
-1- Open the `gotify` using `http://127.0.0.1:8000/` 
-2- Open the `mailhog` using `http://localhost:8025/` to check your received mails
-3- Use the following endpoint to create a new verification
+- Open the `gotify` using `http://127.0.0.1:8000/` 
+- Open the `mailhog` using `http://localhost:8025/` to check your received mails
+- Use the following endpoint to create a new verification
 ```
 POST http://localhost/verifications
 ````
@@ -65,8 +65,8 @@ or
 }
 ```
 
-4- By getting your success code which is `201` you will receive your verification code on the already specified channel depending on your payload
-5- Now for confirmation, you should use the returned `uuid` as a verification identifier and the code received as a verification cod, and call the following endpoint
+- By getting your success code which is `201` you will receive your verification code on the already specified channel depending on your payload
+- Now for confirmation, you should use the returned `uuid` as a verification identifier and the code received as a verification cod, and call the following endpoint
 ```
 POST http://localhost/verifications/:uuid/confirm
 ```
